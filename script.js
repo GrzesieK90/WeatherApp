@@ -42,13 +42,31 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function fetchWeatherDataAndForecast() {    //Getting data from API
-    fetch(`https://api.weatherapi.com/v1/current.json?key=eef4e30132124eef80f203739240502&q=${cityInput}`)
-      .then(response => response.json())
+    const currentApiKey = '5e242bbd72e64501bd583043241012';
+    
+    // Funkcja do logowania błędów
+    function handleApiError(error, endpoint) {
+      console.error(`API Error at ${endpoint}:`, error);
+      alert(`Wystąpił problem z połączeniem do pogody:
+- Endpoint: ${endpoint}
+- Miasto: ${cityInput}
+- Sprawdź swój klucz API
+- Upewnij się, że masz aktywne połączenie internetowe`);
+    }
+
+    // Pobieranie aktualnej pogody
+    fetch(`https://api.weatherapi.com/v1/current.json?key=${currentApiKey}&q=${cityInput}`)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
       .then(data => {
-        console.log(data);
+        console.log('Current Weather Data:', data);
         temp.innerHTML = data.current.temp_c + "&#176;";
         conditionOutput.innerHTML = data.current.condition.text;
-        // Taking and printing all needed data
+        
         const date = data.location.localtime.split(' ')[0];
         const y = parseInt(date.substr(0, 4));
         const m = parseInt(date.substr(5, 2));
@@ -65,13 +83,13 @@ document.addEventListener('DOMContentLoaded', function () {
         humidityOutput.innerHTML = data.current.humidity + "%";
         windOutput.innerHTML = data.current.wind_kph + "km/h";
 
-        let timeOfDay = "day";    //Selecting between day and night backgrounds
+        let timeOfDay = "day";
         if (!data.current.is_day) {
           timeOfDay = "night";
         }
 
-        let cc = data.current.condition.code // current condition code
-        let cLink = `url(./images/${timeOfDay}/`  // shortcut for link to backgrounds
+        let cc = data.current.condition.code
+        let cLink = `url(./images/${timeOfDay}/`
 
         if(cc === 1000) {                  // Function for changes of background
           app.style.backgroundImage = cLink + "lCloud0.jpg)"
@@ -111,32 +129,39 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         app.style.opacity = "1";
       })
-      .catch(() => {      // Checking for existing city name
-        alert('City not found, please try again!');
+      .catch(error => {
+        handleApiError(error, 'current.json');
         app.style.opacity = "1";
       });
 
-    fetch(`https://api.weatherapi.com/v1/forecast.json?key=eef4e30132124eef80f203739240502&q=${cityInput}&days=7`)
-      .then(response => response.json())
+    // Pobieranie prognozy
+    fetch(`https://api.weatherapi.com/v1/forecast.json?key=${currentApiKey}&q=${cityInput}&days=7`)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
       .then(data => {
-        console.log(data);
+        console.log('Forecast Data:', data);
 
-        // Checking for weather to next days
+        // Sprawdzanie prognozy na kolejne dni
         for (let i = 0; i < data.forecast.forecastday.length; i++) {
           const forecast = data.forecast.forecastday[i];
           const dayElement = document.getElementById(`day${i + 1}`);
 
-          // Checking if searched element exist
           if (dayElement) {
-            // Data for next days
             const date = forecast.date;
-            const dayOfWeek = dayOfTheWeek(parseInt(date.substr(8, 2)), parseInt(date.substr(5, 2)), parseInt(date.substr(0, 4)));
+            const dayOfWeek = dayOfTheWeek(
+              parseInt(date.substr(8, 2)), 
+              parseInt(date.substr(5, 2)), 
+              parseInt(date.substr(0, 4))
+            );
             const iconId = forecast.day.condition.icon.substr(2);
             const iconUrl = "http:" + iconId;
             const tempMax = forecast.day.maxtemp_c;
             const tempMin = forecast.day.mintemp_c;
 
-            // Update data in HTML file
             dayElement.querySelector('.day-of-week').innerHTML = dayOfWeek;
             dayElement.querySelector('.icon').src = iconUrl;
             dayElement.querySelector('.temp-max').innerHTML = tempMax + "&#176;C";
@@ -145,7 +170,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
       })
       .catch(error => {
-        console.error('Error fetching weather forecast:', error);
+        handleApiError(error, 'forecast.json');
       });
   }
 
